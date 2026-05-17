@@ -1,72 +1,151 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Search, Bell, Trophy, Settings,
   TrendingUp, TrendingDown, AlertTriangle,
+  Coffee, X, CheckCircle, Zap,
 } from 'lucide-react';
 
-/* ──────────────────────────────────────
-   Datos del equipo
-────────────────────────────────────── */
-const MIEMBROS = [
+/* ══════════════════════════════════════════════════════
+   DATOS ESTÁTICOS: Equipo — fuente de verdad del estado
+   Refleja exactamente los colores y porcentajes de la UI
+══════════════════════════════════════════════════════ */
+const TEAM_ENERGY_DATA = [
   {
-    name: 'Elena Ramos',
-    role: 'Lead UI/UX Designer',
-    img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120',
-    status: 'Estable',
+    name:      'Elena Ramos',
+    role:      'Lead UI/UX Designer',
+    img:       'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120',
+    status:    'Estable',
     statusCls: 'text-green-600',
-    ring: 'ring-green-500',
-    energia: 92,
-    Icon: TrendingUp,
-    iconCls: 'text-gray-300',
+    statusBg:  'bg-green-50 border-green-200',
+    ring:      'ring-green-500',
+    energia:   92,
+    Icon:      TrendingUp,
+    iconCls:   'text-green-400',
+    barColor:  'bg-green-500',
   },
   {
-    name: 'Marcos Silva',
-    role: 'Fullstack Developer',
-    img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120',
-    status: 'En Riesgo',
+    name:      'Marcos Silva',
+    role:      'Fullstack Developer',
+    img:       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120',
+    status:    'En Riesgo',
     statusCls: 'text-yellow-600',
-    ring: 'ring-yellow-400',
-    energia: 64,
-    Icon: TrendingDown,
-    iconCls: 'text-yellow-400',
+    statusBg:  'bg-yellow-50 border-yellow-200',
+    ring:      'ring-yellow-400',
+    energia:   64,
+    Icon:      TrendingDown,
+    iconCls:   'text-yellow-400',
+    barColor:  'bg-yellow-400',
   },
   {
-    name: 'Julián Ortiz',
-    role: 'Product Manager',
-    img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120',
-    status: 'Burnout',
+    name:      'Julián Ortiz',
+    role:      'Product Manager',
+    img:       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120',
+    status:    'Burnout',
     statusCls: 'text-red-600',
-    ring: 'ring-red-500',
-    energia: 31,
-    Icon: AlertTriangle,
-    iconCls: 'text-red-400',
+    statusBg:  'bg-red-50 border-red-200',
+    ring:      'ring-red-500',
+    energia:   31,
+    Icon:      AlertTriangle,
+    iconCls:   'text-red-400',
+    barColor:  'bg-red-500',
   },
 ];
 
-const CHART = [
-  { name: 'Elena',  carga: 65, energia: 85 },
-  { name: 'Marcos', carga: 80, energia: 48 },
-  { name: 'Julián', carga: 92, energia: 22 },
-  { name: 'Lucía',  carga: 48, energia: 72 },
-  { name: 'Tomás',  carga: 62, energia: 62 },
-];
+/* ══════════════════════════════════════════════════════
+   DATOS HISTÓRICOS: Gráfica de barras recalculada
+   por empleado — vista diaria de la semana actual
+══════════════════════════════════════════════════════ */
+const CHART_BY_EMPLOYEE = {
+  default: [
+    { name: 'Elena',  carga: 65, energia: 85 },
+    { name: 'Marcos', carga: 80, energia: 48 },
+    { name: 'Julián', carga: 92, energia: 22 },
+    { name: 'Lucía',  carga: 48, energia: 72 },
+    { name: 'Tomás',  carga: 62, energia: 62 },
+  ],
+  'Elena Ramos': [
+    { name: 'Lun', carga: 52, energia: 95 },
+    { name: 'Mar', carga: 58, energia: 91 },
+    { name: 'Mié', carga: 60, energia: 89 },
+    { name: 'Jue', carga: 55, energia: 94 },
+    { name: 'Vie', carga: 48, energia: 92 },
+  ],
+  'Marcos Silva': [
+    { name: 'Lun', carga: 74, energia: 72 },
+    { name: 'Mar', carga: 82, energia: 61 },
+    { name: 'Mié', carga: 88, energia: 50 },
+    { name: 'Jue', carga: 93, energia: 39 },
+    { name: 'Vie', carga: 80, energia: 64 },
+  ],
+  'Julián Ortiz': [
+    { name: 'Lun', carga: 87, energia: 44 },
+    { name: 'Mar', carga: 92, energia: 36 },
+    { name: 'Mié', carga: 96, energia: 27 },
+    { name: 'Jue', carga: 99, energia: 19 },
+    { name: 'Vie', carga: 91, energia: 31 },
+  ],
+};
+
+const CHART_TITLE_BY_EMPLOYEE = {
+  default:       'Balance de Carga de Trabajo vs. Energía — Equipo',
+  'Elena Ramos': 'Historial Semanal · Elena Ramos · Tendencia Estable ✅',
+  'Marcos Silva':'Historial Semanal · Marcos Silva · Sobrecarga Progresiva ⚠️',
+  'Julián Ortiz':'Historial Semanal · Julián Ortiz · Zona Crítica de Burnout 🔴',
+};
 
 const HISTORIAL = [
-  { dot: 'bg-blue-500',   title: 'Pico de energía detectado',     sub: 'Hace 2 horas • Proyecto Alpha'     },
-  { dot: 'bg-yellow-400', title: 'Marcos entró en zona de riesgo', sub: 'Hace 5 horas • Sobrecarga de tareas'},
-  { dot: 'bg-green-500',  title: 'Sesión de Focus completada',     sub: 'Hace 8 horas • Equipo Diseño'      },
+  { dot: 'bg-blue-500',   title: 'Pico de energía detectado',      sub: 'Hace 2 horas · Proyecto Alpha'      },
+  { dot: 'bg-yellow-400', title: 'Marcos entró en zona de riesgo', sub: 'Hace 5 horas · Sobrecarga de tareas' },
+  { dot: 'bg-green-500',  title: 'Sesión de Focus completada',      sub: 'Hace 8 horas · Equipo Diseño'       },
 ];
 
-const MAX_H = 160; // px altura máxima de barras
+const MAX_H = 160; // px — altura máxima de las barras
 
-/* ──────────────────────────────────────
-   Pantalla
-────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+══════════════════════════════════════════════════════ */
 export default function MapaEnergiaScreen() {
+
+  /* ── 1. Estados de simulación ── */
+  const [teamEnergyData]  = useState(TEAM_ENERGY_DATA);          // datos del equipo (inmutables en demo)
+  const [selectedEmployee, setSelectedEmployee] = useState(null); // nombre del empleado activo o null
+  const [loadingIntervention, setLoadingIntervention] = useState(false);
+
+  /* ── Estados auxiliares de UI ── */
+  const [interventionModal, setInterventionModal] = useState(null); // { name } o null
+  const [interventionTarget, setInterventionTarget] = useState('Julián Ortiz'); // nombre en el panel de alerta
+
+  /* ── Datos del gráfico reactivos al empleado seleccionado ── */
+  const chartData  = CHART_BY_EMPLOYEE[selectedEmployee] ?? CHART_BY_EMPLOYEE.default;
+  const chartTitle = CHART_TITLE_BY_EMPLOYEE[selectedEmployee] ?? CHART_TITLE_BY_EMPLOYEE.default;
+
+  /* ── 2a. handleIntervenir — botón "Intervenir Ahora" ── */
+  const handleIntervenir = (employeeName) => {
+    if (loadingIntervention) return;
+    setLoadingIntervention(true);
+    setTimeout(() => {
+      setLoadingIntervention(false);
+      setInterventionModal({ name: employeeName });
+    }, 1800);
+  };
+
+  /* ── 2b. handleEmployeeClick — clic en tarjeta del equipo ── */
+  const handleEmployeeClick = (employeeName) => {
+    // Toggle: si ya está seleccionado, vuelve a la vista general
+    const next = selectedEmployee === employeeName ? null : employeeName;
+    setSelectedEmployee(next);
+    // Si se selecciona Julián o Marcos, apunta el botón de intervención a ese empleado
+    if (next && next !== 'Elena Ramos') {
+      setInterventionTarget(next);
+    } else if (!next) {
+      setInterventionTarget('Julián Ortiz');
+    }
+  };
+
   return (
     <div className="pl-64 min-h-screen bg-[#F4F6F5] flex flex-col">
 
-      {/* ════ NAVBAR con buscador ════ */}
+      {/* ════ NAVBAR ════ */}
       <header className="bg-white border-b border-gray-100 px-8 h-16 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center space-x-2 bg-gray-100 rounded-xl px-4 py-2.5 w-64">
           <Search size={15} className="text-gray-400 flex-shrink-0" />
@@ -124,63 +203,120 @@ export default function MapaEnergiaScreen() {
             </div>
           </div>
 
-          {/* Cards de miembros */}
+          {/* ── Cards de miembros — clic activa handleEmployeeClick ── */}
+          {selectedEmployee && (
+            <div className="flex items-center space-x-2 bg-[#1C3581]/8 border border-[#1C3581]/15 rounded-xl px-4 py-2.5">
+              <Zap size={13} className="text-[#1C3581]" />
+              <p className="text-xs font-bold text-[#1C3581]">
+                Mostrando historial de <span className="text-gray-900">{selectedEmployee}</span>
+              </p>
+              <button
+                onClick={() => handleEmployeeClick(selectedEmployee)}
+                className="ml-auto text-gray-400 hover:text-gray-700 transition"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
+
           <div className="grid grid-cols-3 gap-4">
-            {MIEMBROS.map(({ name, role, img, status, statusCls, ring, energia, Icon, iconCls }) => (
-              <div key={name} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-                <div className="flex items-start justify-between mb-4">
-                  {/* Avatar con ring de color */}
-                  <div className={`w-14 h-14 rounded-full overflow-hidden ring-4 ring-offset-2 ${ring}`}>
-                    <img src={img} alt={name} className="w-full h-full object-cover" />
+            {teamEnergyData.map((m) => {
+              const isSelected = selectedEmployee === m.name;
+              return (
+                <div
+                  key={m.name}
+                  onClick={() => handleEmployeeClick(m.name)}
+                  className={`bg-white rounded-2xl p-5 border shadow-sm cursor-pointer transition-all duration-300 select-none ${
+                    isSelected
+                      ? 'border-[#1C3581] ring-2 ring-[#1C3581]/20 shadow-md scale-[1.02]'
+                      : 'border-gray-100 hover:border-gray-200 hover:shadow-md hover:scale-[1.01]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-14 h-14 rounded-full overflow-hidden ring-4 ring-offset-2 transition-all duration-300 ${
+                      isSelected ? 'ring-[#1C3581]' : m.ring
+                    }`}>
+                      <img src={m.img} alt={m.name} className="w-full h-full object-cover" />
+                    </div>
+                    <m.Icon size={18} className={m.iconCls} />
                   </div>
-                  <Icon size={18} className={iconCls} />
+                  <h4 className="text-sm font-extrabold text-gray-900">{m.name}</h4>
+                  <p className="text-xs text-gray-400 mt-0.5 mb-4">{m.role}</p>
+
+                  {/* Barra de energía */}
+                  <div className="mb-3">
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className={`${m.barColor} h-full rounded-full transition-all duration-700`}
+                        style={{ width: `${m.energia}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.statusBg} ${m.statusCls}`}>
+                      {m.status}
+                    </span>
+                    <span className="text-xs text-gray-500 font-medium">Energía: <strong>{m.energia}%</strong></span>
+                  </div>
+
+                  {/* Indicador de selección */}
+                  {isSelected && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center space-x-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1C3581] animate-pulse" />
+                      <span className="text-[10px] font-bold text-[#1C3581]">Analizando historial semanal...</span>
+                    </div>
+                  )}
                 </div>
-                <h4 className="text-sm font-extrabold text-gray-900">{name}</h4>
-                <p className="text-xs text-gray-400 mt-0.5 mb-4">{role}</p>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold ${statusCls}`}>{status}</span>
-                  <span className="text-xs text-gray-500 font-medium">Energía: {energia}%</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Gráfica de barras */}
+          {/* ── Gráfica de barras — datos reactivos a selectedEmployee ── */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-            {/* Header */}
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold text-gray-800">
-                Balance de Carga de Trabajo vs. Energía
-              </h3>
-              <div className="flex items-center space-x-5 text-xs font-semibold">
+              <div>
+                <h3
+                  key={chartTitle}
+                  className="text-sm font-bold text-gray-800 transition-all animate-[pulse_0.5s_ease-out_1]"
+                >
+                  {chartTitle}
+                </h3>
+                {selectedEmployee && (
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    Datos históricos de la semana actual · Recalculado en tiempo real
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center space-x-5 text-xs font-semibold flex-shrink-0">
                 <span className="flex items-center space-x-2">
                   <span className="w-3 h-3 rounded-sm bg-[#1C3581]" />
-                  <span className="text-gray-600">Carga (Navy)</span>
+                  <span className="text-gray-600">Carga</span>
                 </span>
                 <span className="flex items-center space-x-2">
                   <span className="w-3 h-3 rounded-sm bg-[#E76F51]" />
-                  <span className="text-gray-600">Energía (Naranja)</span>
+                  <span className="text-gray-600">Energía</span>
                 </span>
               </div>
             </div>
 
-            {/* Barras */}
+            {/* Barras — altura animada con transition-all */}
             <div
               className="flex items-end justify-around gap-2 border-b border-gray-100"
               style={{ height: `${MAX_H}px` }}
             >
-              {CHART.map((d) => (
+              {chartData.map((d) => (
                 <div
-                  key={d.name}
+                  key={`${selectedEmployee ?? 'default'}-${d.name}`}
                   className="flex items-end justify-center gap-1.5 flex-1"
                   style={{ height: `${MAX_H}px` }}
                 >
                   <div
-                    className="bg-[#1C3581] rounded-t-md w-5 transition-all duration-700"
+                    className="bg-[#1C3581] rounded-t-md w-5 transition-all duration-700 ease-out"
                     style={{ height: `${(d.carga / 100) * MAX_H}px` }}
                   />
                   <div
-                    className="bg-[#E76F51] rounded-t-md w-5 transition-all duration-700"
+                    className="bg-[#E76F51] rounded-t-md w-5 transition-all duration-700 ease-out"
                     style={{ height: `${(d.energia / 100) * MAX_H}px` }}
                   />
                 </div>
@@ -189,7 +325,7 @@ export default function MapaEnergiaScreen() {
 
             {/* Etiquetas */}
             <div className="flex justify-around mt-3">
-              {CHART.map((d) => (
+              {chartData.map((d) => (
                 <div key={d.name} className="flex-1 text-center">
                   <span className="text-xs text-gray-500 font-medium">{d.name}</span>
                 </div>
@@ -201,7 +337,7 @@ export default function MapaEnergiaScreen() {
         {/* ── Panel derecho ── */}
         <div className="w-64 flex-shrink-0 space-y-4">
 
-          {/* Alerta crítica */}
+          {/* Alerta crítica — botón conectado a handleIntervenir */}
           <div className="bg-white border-2 border-red-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center space-x-2 mb-3">
               <AlertTriangle size={17} className="text-red-500" />
@@ -210,16 +346,42 @@ export default function MapaEnergiaScreen() {
             <h4 className="text-base font-extrabold text-gray-900 leading-snug mb-2">
               Riesgo de Rotación Temprana
             </h4>
-            <p className="text-xs text-gray-500 leading-relaxed mb-4">
-              Exceso de revisiones detectado en el departamento de Desarrollo. Julián y Marcos
-              muestran patrones de fatiga cognitiva altos.
+            <p className="text-xs text-gray-500 leading-relaxed mb-1">
+              Exceso de revisiones detectado en Desarrollo. <strong>{interventionTarget}</strong> muestra
+              patrones de fatiga cognitiva altos.
             </p>
-            <button className="w-full bg-red-600 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-red-700 transition shadow-md shadow-red-600/20">
-              Intervenir Ahora
+            <p className="text-[10px] text-gray-400 mb-4 italic">
+              {selectedEmployee ? `← Empleado activo: ${selectedEmployee}` : 'Selecciona una tarjeta para enfocar'}
+            </p>
+
+            <button
+              onClick={() => handleIntervenir(interventionTarget)}
+              disabled={loadingIntervention}
+              className={`w-full flex items-center justify-center space-x-2 font-bold py-2.5 rounded-xl text-sm transition-all duration-300 shadow-md relative overflow-hidden ${
+                loadingIntervention
+                  ? 'bg-red-400 text-white/80 cursor-not-allowed'
+                  : 'bg-red-600 text-white hover:bg-red-700 shadow-red-600/20 hover:shadow-lg hover:shadow-red-600/30'
+              }`}
+            >
+              {loadingIntervention ? (
+                <>
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                  <span>Conectando empáticamente...</span>
+                  <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.2s_infinite]" />
+                </>
+              ) : (
+                <>
+                  <Coffee size={14} />
+                  <span>Intervenir Ahora</span>
+                </>
+              )}
             </button>
           </div>
 
-          {/* Historial */}
+          {/* Historial de energía */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
               Historial de Energía
@@ -242,8 +404,65 @@ export default function MapaEnergiaScreen() {
         </div>
       </main>
 
+      {/* ════ MODAL — Intervención exitosa ════ */}
+      {interventionModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(3px)' }}
+          onClick={(e) => e.target === e.currentTarget && setInterventionModal(null)}
+        >
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Banda verde superior */}
+            <div className="bg-gradient-to-r from-green-500 to-emerald-400 px-6 py-5 flex items-center space-x-4">
+              <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Coffee size={22} className="text-white" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-widest">
+                  Cuate AI · Intervención IA
+                </p>
+                <h3 className="text-base font-extrabold text-white leading-tight mt-0.5">
+                  ¡Intervención Registrada!
+                </h3>
+              </div>
+            </div>
+
+            {/* Cuerpo */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-start space-x-3">
+                <CheckCircle size={18} className="text-green-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  Invitación de <strong>café virtual</strong> enviada a{' '}
+                  <span className="font-extrabold text-gray-900">{interventionModal.name}</span>{' '}
+                  para una charla de apoyo. Intervención registrada.
+                </p>
+              </div>
+              <div className="bg-gray-50 rounded-2xl px-4 py-3 space-y-1.5 border border-gray-100">
+                {[
+                  '✅ Notificación empática enviada por Cuate AI',
+                  '📋 Caso registrado en el Radar del Founder',
+                  '🔔 Seguimiento programado en 24 horas',
+                ].map((item) => (
+                  <p key={item} className="text-xs text-gray-600 font-medium">{item}</p>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => setInterventionModal(null)}
+                className="w-full bg-[#1C3581] text-white font-extrabold py-3 rounded-xl text-sm hover:opacity-90 transition shadow-lg shadow-[#1C3581]/20"
+              >
+                Entendido · Continuar Monitoreando
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bot flotante */}
-      <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#2A9D87] rounded-full shadow-lg shadow-[#2A9D87]/40 flex items-center justify-center hover:scale-110 transition-transform z-50">
+      <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#2A9D87] rounded-full shadow-lg shadow-[#2A9D87]/40 flex items-center justify-center hover:scale-110 transition-transform z-40">
         <span className="text-white text-xl">🤖</span>
         <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white font-bold flex items-center justify-center">1</span>
       </button>
