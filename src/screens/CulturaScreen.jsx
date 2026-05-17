@@ -50,9 +50,9 @@ const getCuenta  = (id) => CUENTAS.find((c) => c.id === id);
 ───────────────────────────────────── */
 const estadoGlobal = {
   reconocimientos: [
-    { id: 1, fromId: 'admin', toId: 'mateo',   medalId: 'mvp',      pts: 200, time: 'Hace 2h',    msg: 'Mateo, tu propuesta elevó la calidad de toda la campaña. ¡Eres un crack!', canjeado: false },
-    { id: 2, fromId: 'admin', toId: 'luis',    medalId: 'salvador', pts: 150, time: 'Hace 5h',    msg: '¡Gracias por salvar la edición del Reel de Entel a última hora!',          canjeado: false },
-    { id: 3, fromId: 'admin', toId: 'sofia',   medalId: 'energia',  pts: 120, time: 'Ayer',       msg: 'Sofía siempre sube la energía del equipo. ¡Gracias!',                      canjeado: false },
+    { id: 1, fromId: 'admin', toId: 'mateo', medalId: 'mvp',      pts: 200, time: 'Hace 2h', msg: 'Mateo, tu propuesta elevó la calidad de toda la campaña. ¡Eres un crack!', canjeado: false, likes: 12, hasLiked: false },
+    { id: 2, fromId: 'admin', toId: 'luis',  medalId: 'salvador', pts: 150, time: 'Hace 5h', msg: '¡Gracias por salvar la edición del Reel de Entel a última hora!',          canjeado: false, likes: 8,  hasLiked: false },
+    { id: 3, fromId: 'admin', toId: 'sofia', medalId: 'energia',  pts: 120, time: 'Ayer',    msg: 'Sofía siempre sube la energía del equipo. ¡Gracias!',                      canjeado: false, likes: 5,  hasLiked: false },
   ],
   beneficiosCatalogo: BENEFICIOS_CAT.map((b) => ({ ...b })),
   canjesEnviados: [],  // { id, userId, benId, fecha }
@@ -410,9 +410,20 @@ function ModalNuevoBeneficio({ onClose, onSubmit }) {
 }
 
 /* Admin: Dashboard */
-function AdminDashboard({ reconocimientos, onOpenModal }) {
+function AdminDashboard({ reconocimientos, setReconocimientos, onOpenModal }) {
   const trabajadores = CUENTAS.filter((c) => c.rol === 'trabajador');
   const ptsTotal     = reconocimientos.reduce((sum, r) => sum + r.pts, 0);
+
+  /* handleLike — alterna like en un reconocimiento del feed */
+  const handleLike = (id) => {
+    setReconocimientos((prev) =>
+      prev.map((r) =>
+        r.id === id
+          ? { ...r, hasLiked: !r.hasLiked, likes: r.hasLiked ? r.likes - 1 : r.likes + 1 }
+          : r
+      )
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -468,6 +479,20 @@ function AdminDashboard({ reconocimientos, onOpenModal }) {
                     </div>
                   </div>
                   <p className="text-[11px] text-gray-500 italic bg-gray-50 px-3 py-2 rounded-lg">"{r.msg}"</p>
+                  {/* Botón like — conectado a handleLike */}
+                  <div className="flex items-center justify-end pt-1">
+                    <button
+                      onClick={() => handleLike(r.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-200 ${
+                        r.hasLiked
+                          ? 'bg-red-50 text-red-500 border border-red-200 scale-105'
+                          : 'bg-gray-50 text-gray-400 border border-gray-100 hover:border-red-200 hover:text-red-400'
+                      }`}
+                    >
+                      <Heart size={11} className={r.hasLiked ? 'fill-red-500' : ''} />
+                      <span key={r.likes} className="tabular-nums animate-[pulse_0.3s_ease-out_1]">{r.likes}</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -674,7 +699,7 @@ function AdminApp({ usuario, onLogout, reconocimientos, setReconocimientos, cata
       <Sidebar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} usuario={usuario} onLogout={onLogout} />
       <main className="pl-60 flex-1 p-8">
         <div className="max-w-5xl mx-auto">
-          {activeTab === 'dashboard'    && <AdminDashboard reconocimientos={reconocimientos} onOpenModal={() => setModalRec(true)} />}
+          {activeTab === 'dashboard'    && <AdminDashboard reconocimientos={reconocimientos} setReconocimientos={setReconocimientos} onOpenModal={() => setModalRec(true)} />}
           {activeTab === 'trabajadores' && <AdminTrabajadores reconocimientos={reconocimientos} />}
           {activeTab === 'beneficios'   && <AdminBeneficios catalogo={catalogo} setCatalogo={setCatalogo} />}
         </div>
@@ -838,26 +863,24 @@ function TrabajadorPuntos({ usuario, reconocimientos }) {
 }
 
 /* Trabajador: Cupones */
-function TrabajadorCupones({ usuario, reconocimientos, catalogo }) {
+function TrabajadorCupones({ usuario, reconocimientos, catalogo, puntosXP, purchasedItems = [], onCanjear }) {
   const [selectedBen, setSelectedBen] = useState(null);
-  const [canjeados, setCanjeados]     = useState(estadoGlobal.canjesEnviados.filter((c) => c.userId === usuario.id).map((c) => c.benId));
   const [filtro, setFiltro]           = useState('Todos');
 
-  const misRecs   = reconocimientos.filter((r) => r.toId === usuario.id);
-  const totalPts  = misRecs.reduce((s, r) => s + r.pts, 0);
-  const ptsUsados = canjeados.reduce((s, benId) => {
-    const ben = catalogo.find((b) => b.id === benId);
-    return s + (ben?.cost ?? 0);
-  }, 0);
-  const saldo = totalPts - ptsUsados;
+  // Canjeados = los que vienen del padre (purchasedItems) + historial previo de sesión
+  const canjeados = purchasedItems;
+  const saldo     = puntosXP; // El padre gestiona el saldo real
 
-  const handleCanjear = (benId, cost) => {
+  const handleCanjearLocal = (benId, cost) => {
+    // Registrar en estadoGlobal para el panel admin
+    const ben = catalogo.find((b) => b.id === benId);
     const nuevoCanje = { id: Date.now(), userId: usuario.id, benId, fecha: 'Ahora', aprobado: false };
     estadoGlobal.canjesEnviados.push(nuevoCanje);
-    setCanjeados((prev) => [...prev, benId]);
-    // Reducir stock
+    // Reducir stock del catálogo global
     const idx = estadoGlobal.beneficiosCatalogo.findIndex((b) => b.id === benId);
     if (idx !== -1) estadoGlobal.beneficiosCatalogo[idx].stock = Math.max(0, estadoGlobal.beneficiosCatalogo[idx].stock - 1);
+    // Delegar XP + toast al padre
+    if (onCanjear) onCanjear(benId, cost, ben?.title ?? 'Beneficio');
   };
 
   const categorias = ['Todos', ...new Set(catalogo.map((b) => b.category))];
@@ -957,7 +980,7 @@ function TrabajadorCupones({ usuario, reconocimientos, catalogo }) {
           ptsDisponibles={saldo}
           yaCanjeado={canjeados.includes(selectedBen.id)}
           onClose={() => setSelectedBen(null)}
-          onCanjear={handleCanjear}
+          onCanjear={handleCanjearLocal}
         />
       )}
     </div>
@@ -966,7 +989,36 @@ function TrabajadorCupones({ usuario, reconocimientos, catalogo }) {
 
 /* TRABAJADOR APP WRAPPER */
 function TrabajadorApp({ usuario, onLogout, reconocimientos, catalogo }) {
-  const [activeTab, setActiveTab] = useState('puntos');
+  const [activeTab,    setActiveTab]   = useState('puntos');
+
+  /* ── 1. Estados de simulación solicitados ── */
+  // XP visible en header — arranca en 2450 (valor del Marketplace en el diseño)
+  const [puntosXP,      setPuntosXP]     = useState(2450);
+  // Toast de canje: null | { nombre, exito, msg }
+  const [canjeToast,    setCanjeToast]   = useState(null);
+  // Modal de nuevo reconocimiento comunitario (trabajador puede proponer)
+  const [isModalOpen,   setIsModalOpen]  = useState(false);
+  // Items ya canjeados en esta sesión
+  const [purchasedItems,setPurchasedItems] = useState([]);
+
+  /* ── 2. handleCanjear — evaluación XP + toast + deducción ── */
+  const handleCanjear = (id, costo, nombreBeneficio) => {
+    if (puntosXP >= costo) {
+      setPuntosXP((prev) => prev - costo);
+      setPurchasedItems((prev) => [...prev, id]);
+      setCanjeToast({
+        exito: true,
+        msg: `¡Canje Exitoso! Has desbloqueado: ${nombreBeneficio}. El código de activación fue enviado a tu WhatsApp.`,
+      });
+    } else {
+      setCanjeToast({
+        exito: false,
+        msg: `Saldo insuficiente. Necesitas ${costo - puntosXP} puntos más para canjear ${nombreBeneficio}.`,
+      });
+    }
+    // Auto-cierre del toast a los 4s
+    setTimeout(() => setCanjeToast(null), 4000);
+  };
 
   const tabs = [
     { id: 'puntos',   label: 'Mis Puntos',   Icon: Star    },
@@ -978,22 +1030,72 @@ function TrabajadorApp({ usuario, onLogout, reconocimientos, catalogo }) {
       <Sidebar tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} usuario={usuario} onLogout={onLogout} />
       <main className="pl-60 flex-1 p-8">
         <div className="max-w-3xl mx-auto">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-xl font-extrabold text-gray-900">
-              {activeTab === 'puntos' ? 'Mis Puntos' : 'Mis Cupones'}
-            </h1>
-            <p className="text-sm text-gray-400 mt-1">
-              {activeTab === 'puntos'
-                ? 'Aquí ves los puntos que el admin te ha otorgado.'
-                : 'Canjea tus puntos por beneficios reales.'}
-            </p>
+          {/* Header con XP visible */}
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-extrabold text-gray-900">
+                {activeTab === 'puntos' ? 'Mis Puntos' : 'Mis Cupones'}
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">
+                {activeTab === 'puntos'
+                  ? 'Aquí ves los puntos que el admin te ha otorgado.'
+                  : 'Canjea tus puntos por beneficios reales.'}
+              </p>
+            </div>
+            {/* Contador XP global — se actualiza al canjear */}
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-2 flex-shrink-0">
+              <span className="text-lg">⭐</span>
+              <div>
+                <p className="text-[10px] text-amber-600 font-semibold uppercase tracking-widest leading-none">Tu saldo</p>
+                <p
+                  key={puntosXP}
+                  className="text-lg font-extrabold text-amber-700 tabular-nums animate-[pulse_0.5s_ease-out_1] leading-tight"
+                >
+                  {puntosXP.toLocaleString()} pts
+                </p>
+              </div>
+            </div>
           </div>
 
           {activeTab === 'puntos'  && <TrabajadorPuntos  usuario={usuario} reconocimientos={reconocimientos} />}
-          {activeTab === 'cupones' && <TrabajadorCupones usuario={usuario} reconocimientos={reconocimientos} catalogo={catalogo} />}
+          {activeTab === 'cupones' && (
+            <TrabajadorCupones
+              usuario={usuario}
+              reconocimientos={reconocimientos}
+              catalogo={catalogo}
+              puntosXP={puntosXP}
+              purchasedItems={purchasedItems}
+              onCanjear={handleCanjear}
+            />
+          )}
         </div>
       </main>
+
+      {/* ── Toast de canje — éxito o error ── */}
+      {canjeToast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-start gap-4 px-5 py-4 rounded-2xl shadow-2xl border max-w-sm w-full mx-4 transition-all ${
+          canjeToast.exito
+            ? 'bg-white border-green-200 shadow-green-900/10'
+            : 'bg-white border-red-200 shadow-red-900/10'
+        }`}>
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+            canjeToast.exito ? 'bg-green-50' : 'bg-red-50'
+          }`}>
+            {canjeToast.exito
+              ? <Check size={18} className="text-green-500" />
+              : <X     size={18} className="text-red-500"   />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs font-extrabold leading-tight ${canjeToast.exito ? 'text-gray-900' : 'text-red-700'}`}>
+              {canjeToast.exito ? '¡Canje registrado!' : 'Saldo insuficiente'}
+            </p>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{canjeToast.msg}</p>
+          </div>
+          <button onClick={() => setCanjeToast(null)} className="text-gray-300 hover:text-gray-600 transition flex-shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

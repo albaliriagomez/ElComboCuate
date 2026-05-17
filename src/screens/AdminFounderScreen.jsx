@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Search, Bell, Trophy, BarChart2, TrendingUp,
   Network, BookOpen, Layers, MessageCircle, LayoutGrid, Plus, Bot, ShieldCheck,
+  X, CheckCircle,
 } from 'lucide-react';
 
 /* ──────────────────────────────────────
@@ -135,12 +136,59 @@ function LineChart() {
    Pantalla
 ────────────────────────────────────── */
 export default function AdminFounderScreen() {
-  const [integraciones, setIntegraciones] = useState(INTEGRACIONES_INIT);
+  /* ── Estados base ── */
+  const [integraciones,   setIntegraciones]   = useState(INTEGRACIONES_INIT);
 
-  const toggleInteg = (i) =>
+  /* ── Nuevos estados de simulación ── */
+  const [ahorroRetencion, setAhorroRetencion] = useState(42500);
+  const [exportingReport, setExportingReport] = useState(false);
+  const [connectingApps,  setConnectingApps]  = useState(new Set()); // apps en estado "Conectando..."
+  const [reportToast,     setReportToast]     = useState(null);      // mensaje flotante o null
+
+  /* ── handleToggleIntegration ──
+     Activa/desactiva una integración por nombre.
+     Al activar: muestra "Conectando..." 1.5s → "¡Conectado en vivo!" + suma $2700 al ahorro. */
+  const handleToggleIntegration = (appName) => {
     setIntegraciones((prev) =>
-      prev.map((item, idx) => (idx === i ? { ...item, on: !item.on } : item))
+      prev.map((item) => {
+        if (item.name !== appName) return item;
+        const nextOn = !item.on;
+        if (nextOn) {
+          // Estado de carga inmediato
+          setConnectingApps((s) => new Set([...s, appName]));
+          setTimeout(() => {
+            // Quita el spinner y actualiza el status a "en vivo"
+            setConnectingApps((s) => { const n = new Set(s); n.delete(appName); return n; });
+            setIntegraciones((p) =>
+              p.map((it) =>
+                it.name === appName
+                  ? { ...it, status: '¡Conectado en vivo!' }
+                  : it
+              )
+            );
+            // Impacto financiero visible al conectar una nueva integración
+            setAhorroRetencion((prev) => prev + 2700);
+          }, 1500);
+          // Texto de transición mientras conecta
+          return { ...item, on: true, status: 'Conectando API Business...' };
+        }
+        // Desactivar: reset inmediato
+        return { ...item, on: false, status: 'Desconectado' };
+      })
     );
+  };
+
+  /* ── handleExportarReporte ──
+     Simula compilación 1.2s → toast de éxito que se cierra a los 4s. */
+  const handleExportarReporte = () => {
+    if (exportingReport) return;
+    setExportingReport(true);
+    setTimeout(() => {
+      setExportingReport(false);
+      setReportToast('¡Reporte Financiero de Retención generado con éxito! Enviado al correo del Founder.');
+      setTimeout(() => setReportToast(null), 4000);
+    }, 1200);
+  };
 
   return (
     <div className="pl-64 min-h-screen bg-[#F4F6F5] flex flex-col">
@@ -186,9 +234,27 @@ export default function AdminFounderScreen() {
               Monitoreo macro y salud operativa del ecosistema creativo.
             </p>
           </div>
-          <button className="flex items-center space-x-2 bg-[#2A9D87] text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-[#23897A] transition shadow-md shadow-[#2A9D87]/20 flex-shrink-0">
-            <BarChart2 size={15} />
-            <span>Exportar Reporte Trimestral</span>
+          <button
+            onClick={handleExportarReporte}
+            disabled={exportingReport}
+            className={`relative flex items-center space-x-2 px-5 py-3 rounded-xl text-sm font-bold transition shadow-md overflow-hidden flex-shrink-0 ${
+              exportingReport
+                ? 'bg-[#2A9D87]/60 text-white/70 cursor-not-allowed'
+                : 'bg-[#2A9D87] text-white hover:bg-[#23897A] shadow-[#2A9D87]/20'
+            }`}
+          >
+            {exportingReport ? (
+              <svg className="animate-spin" width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+              </svg>
+            ) : (
+              <BarChart2 size={15} />
+            )}
+            <span>{exportingReport ? 'Compilando métricas macro...' : 'Exportar Reporte Trimestral'}</span>
+            {exportingReport && (
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"/>
+            )}
           </button>
         </div>
 
@@ -213,27 +279,63 @@ export default function AdminFounderScreen() {
           </div>
 
           {/* Ahorro por Retención (2/5) */}
-          <div className="col-span-2 bg-[#1C3581] rounded-2xl p-6 flex flex-col justify-between">
+          <div className="col-span-2 bg-[#1C3581] rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden">
+            {/* Decoración de fondo */}
+            <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/5 blur-2xl pointer-events-none" />
+
             <div>
               <h3 className="text-sm font-extrabold text-white">Ahorro por Retención</h3>
               <p className="text-xs text-white/50 mt-1 leading-relaxed">
                 Impacto financiero de la baja rotación este año.
               </p>
+              {/* Indicador de integración recién conectada */}
+              {ahorroRetencion > 42500 && (
+                <span className="inline-flex items-center gap-1.5 mt-2 bg-[#3AC0A6]/20 text-[#3AC0A6] text-[10px] font-bold px-2.5 py-1 rounded-full border border-[#3AC0A6]/30 animate-[pulse_2s_ease-in-out_infinite]">
+                  <TrendingUp size={10} />
+                  IA detectó +${(ahorroRetencion - 42500).toLocaleString()} en optimizaciones
+                </span>
+              )}
             </div>
+
             <div>
-              <p className="text-4xl font-black text-white mt-4 leading-none">$42,500.00</p>
+              {/* Número principal — pulsa al actualizarse */}
+              <p
+                key={ahorroRetencion}
+                className="text-4xl font-black text-white mt-4 leading-none tabular-nums animate-[pulse_0.6s_ease-out_1]"
+              >
+                ${ahorroRetencion.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
+
               <span className="inline-flex items-center space-x-1.5 mt-3 bg-[#2A9D87]/20 text-[#3AC0A6] text-xs font-bold px-3 py-1.5 rounded-full border border-[#3AC0A6]/20">
                 <ShieldCheck size={13} />
                 <span>98.5% Retención de Talento</span>
               </span>
+
+              {/* Barra de progreso meta anual — porcentaje sube con el ahorro */}
               <div className="mt-4">
-                <div className="flex justify-between text-xs text-white/60 mb-1.5">
-                  <span>Meta Anual</span>
-                  <span className="font-bold text-white">85%</span>
-                </div>
-                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                  <div className="bg-[#2A9D87] h-full rounded-full" style={{ width: '85%' }} />
-                </div>
+                {(() => {
+                  const meta   = 60000;
+                  const progPct = Math.min(99, Math.round((ahorroRetencion / meta) * 100));
+                  return (
+                    <>
+                      <div className="flex justify-between text-xs text-white/60 mb-1.5">
+                        <span>Meta Anual</span>
+                        <span
+                          key={progPct}
+                          className="font-bold text-white tabular-nums animate-[pulse_0.5s_ease-out_1]"
+                        >
+                          {progPct}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-[#2A9D87] to-[#3AC0A6] h-full rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: `${progPct}%` }}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -259,26 +361,104 @@ export default function AdminFounderScreen() {
             </button>
           </div>
 
-          {/* Grid de integraciones */}
-          <div className="grid grid-cols-3 gap-4 mt-5">
-            {integraciones.map((integ, i) => {
-              const Icon = integ.Icon;
+          {/* Contador dinámico de integrations activas */}
+          <div className="flex items-center gap-3 mt-4 mb-1">
+            {(() => {
+              const activas = integraciones.filter((i) => i.on).length;
               return (
-                <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-3">
+                <>
+                  <span
+                    key={activas}
+                    className="text-xs font-extrabold text-[#2A9D87] tabular-nums animate-[pulse_0.5s_ease-out_1]"
+                  >
+                    {activas}/{integraciones.length} conectadas
+                  </span>
+                  <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-[#2A9D87] to-[#3AC0A6] h-full rounded-full transition-all duration-700 ease-out"
+                      style={{ width: `${(activas / integraciones.length) * 100}%` }}
+                    />
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Grid de integraciones */}
+          <div className="grid grid-cols-3 gap-4 mt-3">
+            {integraciones.map((integ) => {
+              const Icon       = integ.Icon;
+              const connecting = connectingApps.has(integ.name);
+              const justLive   = integ.status === '¡Conectado en vivo!';
+
+              return (
+                <div
+                  key={integ.name}
+                  className={`relative rounded-xl p-4 space-y-3 border-2 transition-all duration-500 overflow-hidden ${
+                    connecting
+                      ? 'border-amber-300 bg-amber-50/60 shadow-md shadow-amber-200/40'
+                      : integ.on
+                        ? justLive
+                          ? 'border-[#2A9D87] bg-[#F0FAF8] shadow-md shadow-[#2A9D87]/15'
+                          : 'border-[#2A9D87]/40 bg-[#F0FAF8]/70'
+                        : 'border-gray-100 bg-white hover:border-gray-200'
+                  }`}
+                >
+                  {/* Glow ring animado mientras conecta */}
+                  {connecting && (
+                    <span className="absolute inset-0 rounded-xl border-2 border-amber-400 animate-ping opacity-30 pointer-events-none" />
+                  )}
+
+                  {/* Badge "¡En vivo!" que aparece al conectar */}
+                  {justLive && !connecting && (
+                    <span className="absolute top-2 right-2 flex items-center gap-1 bg-[#2A9D87] text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-[pulse_2s_ease-in-out_infinite]">
+                      <span className="w-1 h-1 rounded-full bg-white" />
+                      EN VIVO
+                    </span>
+                  )}
+
+                  {/* Fila: icono + nombre + toggle */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-9 h-9 rounded-lg ${integ.iconBg} flex items-center justify-center flex-shrink-0`}>
+                      <div className={`relative w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300 ${integ.iconBg} ${
+                        integ.on ? 'shadow-md' : 'opacity-50 grayscale'
+                      }`}>
                         <Icon size={17} className={integ.iconCls} />
+                        {/* Halo de actividad */}
+                        {integ.on && !connecting && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#2A9D87] border-2 border-white" />
+                        )}
                       </div>
-                      <span className="text-sm font-extrabold text-gray-900">{integ.name}</span>
+                      <span className={`text-sm font-extrabold transition-colors duration-300 ${integ.on ? 'text-gray-900' : 'text-gray-400'}`}>
+                        {integ.name}
+                      </span>
                     </div>
-                    <Toggle on={integ.on} onToggle={() => toggleInteg(i)} />
+                    <Toggle on={integ.on} onToggle={() => handleToggleIntegration(integ.name)} />
                   </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">{integ.desc}</p>
-                  <p className={`text-[10px] font-semibold flex items-center space-x-1 ${integ.on ? 'text-[#2A9D87]' : 'text-gray-400'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${integ.on ? 'bg-[#2A9D87]' : 'bg-gray-300'}`} />
-                    <span>{integ.status}</span>
+
+                  {/* Descripción */}
+                  <p className={`text-xs leading-relaxed transition-colors duration-300 ${integ.on ? 'text-gray-500' : 'text-gray-300'}`}>
+                    {integ.desc}
                   </p>
+
+                  {/* Status con spinner / dot / texto */}
+                  <div className={`flex items-center space-x-1.5 text-[10px] font-semibold transition-colors duration-300 ${
+                    connecting ? 'text-amber-600' : integ.on ? 'text-[#2A9D87]' : 'text-gray-400'
+                  }`}>
+                    {connecting ? (
+                      <svg className="animate-spin flex-shrink-0" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                      </svg>
+                    ) : (
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        integ.on ? 'bg-[#2A9D87] animate-pulse' : 'bg-gray-300'
+                      }`} />
+                    )}
+                    <span key={integ.status} className="animate-[pulse_0.4s_ease-out_1]">
+                      {integ.status}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -352,6 +532,22 @@ export default function AdminFounderScreen() {
           </div>
         </div>
       </main>
+
+      {/* Toast — Reporte exportado */}
+      {reportToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-start gap-4 bg-white border border-green-200 rounded-2xl px-5 py-4 shadow-2xl shadow-green-900/10 max-w-sm w-full">
+          <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircle size={18} className="text-green-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-extrabold text-gray-900 leading-tight">Reporte generado</p>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">{reportToast}</p>
+          </div>
+          <button onClick={() => setReportToast(null)} className="text-gray-300 hover:text-gray-600 transition flex-shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Botón flotante */}
       <button className="fixed bottom-6 right-6 w-12 h-12 bg-[#2A9D87] rounded-full shadow-lg shadow-[#2A9D87]/40 flex items-center justify-center hover:scale-110 transition-transform z-50">
