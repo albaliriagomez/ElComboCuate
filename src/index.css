@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* =========================================================
+     COLORES PRINCIPALES (Identidad de Marca Tu Cuate S.R.L.)
+     ========================================================= */
+  --combocuate-green-teal:   #2A9D87;
+  --combocuate-green-light:  #3AC0A6;
+  --combocuate-blue-vest:    #1C3581;
+  --combocuate-white:        #FFFFFF;
+
+  /* =========================================================
+     COLORES SECUNDARIOS, GAMIFICACIÓN Y ALERTAS
+     ========================================================= */
+  --combocuate-orange:       #E76F51;
+  --combocuate-yellow:       #F4A261;
+  --combocuate-purple-ai:    #7C4DFF;
+
+  /* =========================================================
+     FONDOS Y SUPERFICIES
+     ========================================================= */
+  --combocuate-bg:           #F2F7F6;
+  --combocuate-card:         #FFFFFF;
+  --combocuate-sidebar:      #122252;
+  --combocuate-dark:         #0A1329;
+
+  /* =========================================================
+     TEXTO Y TIPOGRAFÍA
+     ========================================================= */
+  --combocuate-text:         #1C3581;
+  --combocuate-text-soft:    #527570;
+  --combocuate-text-light:   #B3D1CC;
+
+  /* =========================================================
+     GRADIENTES DE MARCA
+     ========================================================= */
+  --gradient-main: linear-gradient(135deg, #3AC0A6 0%, #2A9D87 50%, #1C3581 100%);
+  --gradient-reward: linear-gradient(135deg, #F4A261 0%, #E76F51 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--combocuate-bg);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
