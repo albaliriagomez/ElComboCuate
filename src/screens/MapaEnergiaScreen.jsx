@@ -107,26 +107,37 @@ const MAX_H = 160; // px — altura máxima de las barras
 export default function MapaEnergiaScreen() {
 
   /* ── 1. Estados de simulación ── */
-  const [teamEnergyData]  = useState(TEAM_ENERGY_DATA);          // datos del equipo (inmutables en demo)
-  const [selectedEmployee, setSelectedEmployee] = useState(null); // nombre del empleado activo o null
-  const [loadingIntervention, setLoadingIntervention] = useState(false);
+  const [teamEnergyData]   = useState(TEAM_ENERGY_DATA);
+  const [selectedEmployee,  setSelectedEmployee]  = useState(null);
+  const [julianStatus,      setJulianStatus]      = useState({ status: 'Burnout', energia: 31, carga: 85 });
+  const [isIntervening,     setIsIntervening]     = useState(false);
+  const [interventionToast, setInterventionToast] = useState(false);
 
   /* ── Estados auxiliares de UI ── */
-  const [interventionModal, setInterventionModal] = useState(null); // { name } o null
-  const [interventionTarget, setInterventionTarget] = useState('Julián Ortiz'); // nombre en el panel de alerta
+  const [interventionModal,  setInterventionModal]  = useState(null);
+  const [interventionTarget, setInterventionTarget] = useState('Julián Ortiz');
 
-  /* ── Datos del gráfico reactivos al empleado seleccionado ── */
-  const chartData  = CHART_BY_EMPLOYEE[selectedEmployee] ?? CHART_BY_EMPLOYEE.default;
+  /* ── Datos del gráfico — patcha la barra de Julián con julianStatus en tiempo real ── */
+  const rawChartData = CHART_BY_EMPLOYEE[selectedEmployee] ?? CHART_BY_EMPLOYEE.default;
+  const chartData = rawChartData.map((d) => {
+    if (!selectedEmployee && d.name === 'Julián')
+      return { ...d, carga: julianStatus.carga, energia: julianStatus.energia };
+    if (selectedEmployee === 'Julián Ortiz' && d.name === 'Vie')
+      return { ...d, carga: julianStatus.carga, energia: julianStatus.energia };
+    return d;
+  });
   const chartTitle = CHART_TITLE_BY_EMPLOYEE[selectedEmployee] ?? CHART_TITLE_BY_EMPLOYEE.default;
 
   /* ── 2a. handleIntervenir — botón "Intervenir Ahora" ── */
   const handleIntervenir = (employeeName) => {
-    if (loadingIntervention) return;
-    setLoadingIntervention(true);
+    if (isIntervening) return;
+    setIsIntervening(true);
     setTimeout(() => {
-      setLoadingIntervention(false);
-      setInterventionModal({ name: employeeName });
-    }, 1800);
+      setIsIntervening(false);
+      setJulianStatus({ status: 'En Intervención', energia: 55, carga: 45 });
+      setInterventionToast(true);
+      setTimeout(() => setInterventionToast(false), 4500);
+    }, 1500);
   };
 
   /* ── 2b. handleEmployeeClick — clic en tarjeta del equipo ── */
@@ -221,7 +232,18 @@ export default function MapaEnergiaScreen() {
 
           <div className="grid grid-cols-3 gap-4">
             {teamEnergyData.map((m) => {
-              const isSelected = selectedEmployee === m.name;
+              const isSelected  = selectedEmployee === m.name;
+              const isJulian    = m.name === 'Julián Ortiz';
+              const intervened  = isJulian && julianStatus.status === 'En Intervención';
+
+              const displayStatus    = isJulian ? julianStatus.status  : m.status;
+              const displayEnergia   = isJulian ? julianStatus.energia : m.energia;
+              const displayStatusCls = intervened ? 'text-blue-600'              : m.statusCls;
+              const displayStatusBg  = intervened ? 'bg-blue-50 border-blue-200' : m.statusBg;
+              const displayBarColor  = intervened ? 'bg-blue-400'                : m.barColor;
+              const DisplayIcon      = intervened ? TrendingUp                    : m.Icon;
+              const displayIconCls   = intervened ? 'text-blue-400'              : m.iconCls;
+
               return (
                 <div
                   key={m.name}
@@ -238,7 +260,7 @@ export default function MapaEnergiaScreen() {
                     }`}>
                       <img src={m.img} alt={m.name} className="w-full h-full object-cover" />
                     </div>
-                    <m.Icon size={18} className={m.iconCls} />
+                    <DisplayIcon size={18} className={displayIconCls} />
                   </div>
                   <h4 className="text-sm font-extrabold text-gray-900">{m.name}</h4>
                   <p className="text-xs text-gray-400 mt-0.5 mb-4">{m.role}</p>
@@ -247,17 +269,20 @@ export default function MapaEnergiaScreen() {
                   <div className="mb-3">
                     <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                       <div
-                        className={`${m.barColor} h-full rounded-full transition-all duration-700`}
-                        style={{ width: `${m.energia}%` }}
+                        className={`${displayBarColor} h-full rounded-full transition-all duration-700`}
+                        style={{ width: `${displayEnergia}%` }}
                       />
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${m.statusBg} ${m.statusCls}`}>
-                      {m.status}
+                    <span
+                      key={displayStatus}
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full border animate-[pulse_0.5s_ease-out_1] ${displayStatusBg} ${displayStatusCls}`}
+                    >
+                      {displayStatus}
                     </span>
-                    <span className="text-xs text-gray-500 font-medium">Energía: <strong>{m.energia}%</strong></span>
+                    <span className="text-xs text-gray-500 font-medium">Energía: <strong>{displayEnergia}%</strong></span>
                   </div>
 
                   {/* Indicador de selección */}
@@ -356,21 +381,28 @@ export default function MapaEnergiaScreen() {
 
             <button
               onClick={() => handleIntervenir(interventionTarget)}
-              disabled={loadingIntervention}
+              disabled={isIntervening || julianStatus.status === 'En Intervención'}
               className={`w-full flex items-center justify-center space-x-2 font-bold py-2.5 rounded-xl text-sm transition-all duration-300 shadow-md relative overflow-hidden ${
-                loadingIntervention
+                isIntervening
                   ? 'bg-red-400 text-white/80 cursor-not-allowed'
+                  : julianStatus.status === 'En Intervención'
+                  ? 'bg-blue-500 text-white cursor-default shadow-blue-500/20'
                   : 'bg-red-600 text-white hover:bg-red-700 shadow-red-600/20 hover:shadow-lg hover:shadow-red-600/30'
               }`}
             >
-              {loadingIntervention ? (
+              {isIntervening ? (
                 <>
                   <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
                     <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                  <span>Conectando empáticamente...</span>
+                  <span>Enviando Apoyo...</span>
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_1.2s_infinite]" />
+                </>
+              ) : julianStatus.status === 'En Intervención' ? (
+                <>
+                  <CheckCircle size={14} />
+                  <span>Intervención Activa ✓</span>
                 </>
               ) : (
                 <>
@@ -458,6 +490,24 @@ export default function MapaEnergiaScreen() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast — Intervención exitosa */}
+      {interventionToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-start gap-4 bg-white border border-green-200 rounded-2xl px-5 py-4 shadow-2xl shadow-green-900/10 max-w-sm w-full">
+          <div className="w-9 h-9 rounded-xl bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0">
+            <CheckCircle size={18} className="text-green-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-extrabold text-gray-900 leading-tight">¡Intervención Exitosa!</p>
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+              Alerta mitigada. Se programó una sesión de focus y un café virtual automático con Julián.
+            </p>
+          </div>
+          <button onClick={() => setInterventionToast(false)} className="text-gray-300 hover:text-gray-600 transition flex-shrink-0">
+            <X size={14} />
+          </button>
         </div>
       )}
 

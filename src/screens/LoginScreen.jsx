@@ -93,6 +93,7 @@ export default function LoginScreen({ onLogin }) {
   const [codigo, setCodigo] = useState('');
   const [email,  setEmail]  = useState('');
   const [loaded, setLoaded]  = useState(false);
+  const [role,   setRole]   = useState('trabajador'); // 'trabajador' | 'admin'
 
   useEffect(() => {
     const t = setTimeout(() => setLoaded(true), 80);
@@ -129,7 +130,7 @@ export default function LoginScreen({ onLogin }) {
           <div className={`space-y-3 pt-1 transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '100ms' }}>
             <button
-              onClick={onLogin}
+              onClick={() => onLogin(role)}
               className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -142,7 +143,7 @@ export default function LoginScreen({ onLogin }) {
             </button>
 
             <button
-              onClick={onLogin}
+              onClick={() => onLogin(role)}
               className="w-full flex items-center justify-center space-x-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="#0077B5">
@@ -184,24 +185,55 @@ export default function LoginScreen({ onLogin }) {
                 placeholder="nombre@startup.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onLogin()}
+                onKeyDown={(e) => e.key === 'Enter' && onLogin(role)}
                 className="w-full bg-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2A9D87]/30 focus:bg-white focus:shadow-md transition-all duration-200"
               />
             </div>
           </div>
 
-          {/* CTA principal */}
+          {/* Selector de rol — discreto, antes del CTA */}
+          <div className={`transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            style={{ transitionDelay: '370ms' }}>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Acceder como</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setRole('trabajador')}
+                className={`py-2.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 ${
+                  role === 'trabajador'
+                    ? 'border-[#2A9D87] bg-[#2A9D87]/10 text-[#2A9D87]'
+                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                }`}
+              >
+                👤 Trabajador
+              </button>
+              <button
+                onClick={() => setRole('admin')}
+                className={`py-2.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 ${
+                  role === 'admin'
+                    ? 'border-[#1C3581] bg-[#1C3581]/10 text-[#1C3581]'
+                    : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                }`}
+              >
+                ⚡ Founder
+              </button>
+            </div>
+          </div>
+
+          {/* CTA principal — pasa el rol seleccionado */}
           <div className={`transition-all duration-700 ${loaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             style={{ transitionDelay: '400ms' }}>
             <button
-              onClick={onLogin}
-              className="group w-full relative bg-[#2A9D87] text-white font-bold py-3.5 rounded-xl text-sm hover:bg-[#23897A] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-[#2A9D87]/25 overflow-hidden"
+              onClick={() => onLogin(role)}
+              className={`group w-full relative text-white font-bold py-3.5 rounded-xl text-sm active:scale-[0.98] transition-all duration-200 shadow-lg overflow-hidden ${
+                role === 'admin'
+                  ? 'bg-[#1C3581] hover:bg-[#16296e] shadow-[#1C3581]/25'
+                  : 'bg-[#2A9D87] hover:bg-[#23897A] shadow-[#2A9D87]/25'
+              }`}
             >
-              {/* Shimmer en hover */}
               <span className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 skew-x-12"/>
               <span className="relative flex items-center justify-center gap-2">
                 <Sparkles size={15} className="group-hover:animate-spin-once"/>
-                Acceder al Combo
+                {role === 'admin' ? 'Acceder como Founder' : 'Acceder al Combo'}
               </span>
             </button>
           </div>
